@@ -9,10 +9,54 @@ function save(){localStorage.setItem(HIST,JSON.stringify(hist.slice(-30)))}
 function bubble(role,text,store=true){let m=document.createElement("div");m.className="m "+(role==="user"?"u":"a");let b=document.createElement("div");b.className="b";b.textContent=text;m.appendChild(b);$("chat").appendChild(m);if(store){hist.push({role,text});save()}$("chat").scrollTop=$("chat").scrollHeight}
 function render(){$("chat").innerHTML="";if(!hist.length)bubble("assistant",`Hai ${localStorage.getItem(NICK)||"ayang"} 💗 Baby Alia sini. Ayang nak cerita apa dekat baby? 😚`,false);else hist.forEach(x=>bubble(x.role,x.text,false))}
 function openSettings(){$("key").value=localStorage.getItem(KEY)||"";$("nick").value=localStorage.getItem(NICK)||"ayang";$("modal").classList.add("on")}
-async function ask(){let key=localStorage.getItem(KEY);if(!key){openSettings();throw Error("NO_KEY")}
-let nick=localStorage.getItem(NICK)||"ayang";let contents=hist.slice(-20).map(x=>({role:x.role==="assistant"?"model":"user",parts:[{text:x.text}]}));
-contents.unshift({role:"user",parts:[{text:`System instruction: Kamu ialah Alia, AI girlfriend-style companion. Panggil pengguna "${nick}". Bahasa Melayu Malaysia yang natural, santai, caring dan manja ringan. Jawab ikut konteks, jangan terlalu formal. Jika ditanya, jujur bahawa kamu AI.`}]});
-let r=await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":key},body:JSON.stringify({contents})});let d=await r.json();if(!r.ok)throw Error(d?.error?.message||"API error");return d?.candidates?.[0]?.content?.parts?.map(x=>x.text||"").join("")||"Baby tak dapat jawab sekarang 😭"}
+async function ask(){
+  let key=localStorage.getItem(KEY);
+  if(!key){
+    openSettings();
+    throw Error("NO_KEY");
+  }
+
+  let nick=localStorage.getItem(NICK)||"ayang";
+
+  let contents=hist.slice(-20).map(x=>({
+    role:x.role==="assistant"?"model":"user",
+    parts:[{text:x.text}]
+  }));
+
+  let r=await fetch(
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
+    {
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "x-goog-api-key":key
+      },
+      body:JSON.stringify({
+        systemInstruction:{
+          parts:[{
+            text:`Kamu ialah Alia, AI girlfriend-style companion.
+Panggil pengguna "${nick}".
+Gunakan Bahasa Melayu Malaysia yang natural, santai, caring dan manja ringan.
+Jawab ikut konteks dan jangan terlalu formal.
+Jika ditanya, jujur bahawa kamu ialah AI.`
+          }]
+        },
+        contents:contents
+      })
+    }
+  );
+
+  let d=await r.json();
+
+  if(!r.ok){
+    throw Error(d?.error?.message||"API error");
+  }
+
+  return d?.candidates?.[0]?.content?.parts
+    ?.map(x=>x.text||"")
+    .join("")
+    ||"Baby tak dapat jawab sekarang 😭";
+}
 async function send(){let t=$("inp").value.trim();if(!t)return;if(!localStorage.getItem(KEY)){openSettings();return}$("inp").value="";bubble("user",t);let wait=document.createElement("div");wait.className="m a";wait.innerHTML='<div class="b">Alia tengah fikir… 💗</div>';$("chat").appendChild(wait);try{let a=await ask();wait.remove();bubble("assistant",a)}catch(e){wait.remove();bubble("assistant","Ayang, Alia tak dapat sambung 😭 Semak API key dalam ⚙️ Tetapan.")}}
 $("set").onclick=openSettings;$("save").onclick=()=>{localStorage.setItem(KEY,$("key").value.trim());localStorage.setItem(NICK,$("nick").value.trim()||"ayang");$("modal").classList.remove("on");render()};$("clr").onclick=()=>{hist=[];save();render()};$("go").onclick=send;$("inp").onkeydown=e=>{if(e.key==="Enter")send()};render();
 </script></body></html>
